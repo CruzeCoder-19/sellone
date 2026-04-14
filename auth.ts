@@ -111,7 +111,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           return u;
         });
 
-        return { id: user.id, phone: user.phone ?? undefined, name: user.name ?? undefined };
+        return { id: user.id, name: user.name ?? undefined };
       },
     }),
   ],
