@@ -152,23 +152,47 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     }),
   ],
   callbacks: {
+    /*
+     * Roles are re-checked at most once per 60 s. Worst-case staleness for role
+     * grants is 60 s. Without a dedicated cache (Redis), this is the simplest way
+     * to bound DB load on the hottest auth path.
+     */
     async jwt({ token, user }) {
-      if (user) {
-        // Initial sign-in: populate token
-        token.id = user.id;
+      // ── First sign-in: token.roles is absent ──────────────────────────────
+      if (!token.roles) {
+        if (user) { token.id = user.id as unknown as string; }
+        const tokenId = token.id as string | undefined;
+        if (!tokenId) return token;
+
+        const [dbUser, userRoles] = await Promise.all([
+          prisma.user.findUnique({ where: { id: tokenId }, select: { rolesUpdatedAt: true } }),
+          prisma.userRole.findMany({ where: { userId: tokenId } }),
+        ]);
+        token.roles = userRoles.map(r => r.role);
+        token.rolesUpdatedAt = dbUser?.rolesUpdatedAt?.getTime() ?? 0;
+        token.lastRoleCheckAt = Date.now();
+        return token;
       }
-      // Every invocation: re-fetch roles if DB timestamp is newer than token
+
+      // ── Within the 60 s window: skip DB entirely ──────────────────────────
+      const lastCheck = (token.lastRoleCheckAt as number | undefined) ?? 0;
+      if (Date.now() - lastCheck < 60_000) return token;
+
+      // ── 60 s elapsed: check for stale roles ───────────────────────────────
+      const tokenId = token.id as string | undefined;
+      if (!tokenId) return token;
+
       const dbUser = await prisma.user.findUnique({
-        where: { id: token.id as string },
-        select: { rolesUpdatedAt: true },
+        where: { id: tokenId }, select: { rolesUpdatedAt: true },
       });
       const dbTs    = dbUser?.rolesUpdatedAt?.getTime() ?? 0;
-      const tokenTs = (token.rolesUpdatedAt as number) ?? 0;
-      if (!token.roles || dbTs > tokenTs) {
-        const userRoles = await prisma.userRole.findMany({ where: { userId: token.id as string } });
+      const tokenTs = (token.rolesUpdatedAt as number | undefined) ?? 0;
+      if (dbTs > tokenTs) {
+        const userRoles = await prisma.userRole.findMany({ where: { userId: tokenId } });
         token.roles = userRoles.map(r => r.role);
         token.rolesUpdatedAt = dbTs;
       }
+      token.lastRoleCheckAt = Date.now();
       return token;
     },
     async session({ session, token }) {
@@ -234,6 +258,8 @@ Roles are stored in the `UserRole` join table (one row per role per user). A use
 5. Middleware reads the JWT directly (no DB round-trip) to gate routes.
 
 **Propagating role changes:** Whenever a UserRole row is created or deleted, update `user.rolesUpdatedAt = new Date()` in the same transaction. The next JWT refresh will pick up the new roles automatically.
+
+**Staleness window:** The `jwt` callback re-checks `rolesUpdatedAt` at most once per 60 s per session. Worst-case propagation delay for a role grant or revocation is 60 s. This is acceptable for current traffic. If sub-second propagation is needed in future, replace `lastRoleCheckAt` gating with a Redis pub/sub invalidation signal.
 
 **Role helper (lib/auth/roles.ts):**
 

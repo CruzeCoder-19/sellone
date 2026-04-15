@@ -6,11 +6,21 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { signIn } from "next-auth/react";
+import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { sendOtp } from "@/server/actions/auth.actions";
+import { mergeGuestCart, mergeGuestWishlist, mergeGuestCompare } from "@/server/actions/cart.actions";
+import {
+  readGuestCart,
+  readGuestWishlist,
+  readGuestCompare,
+  clearGuestCart,
+  clearGuestWishlist,
+  clearGuestCompare,
+} from "@/lib/guest-storage";
 
 // ─── Schemas ─────────────────────────────────────────────────────────────────
 
@@ -30,6 +40,52 @@ const otpSchema = z.object({
 type EmailForm = z.infer<typeof emailSchema>;
 type PhoneForm = z.infer<typeof phoneSchema>;
 type OtpForm = z.infer<typeof otpSchema>;
+
+// ─── Guest merge helper ───────────────────────────────────────────────────────
+
+async function mergeGuestDataAndRedirect(
+  router: ReturnType<typeof useRouter>,
+  callbackUrl: string,
+) {
+  const guestCart = readGuestCart();
+  const guestWishlist = readGuestWishlist();
+  const guestCompare = readGuestCompare();
+
+  const mergePromises = [];
+  if (guestCart.length > 0) mergePromises.push(mergeGuestCart({ items: guestCart }));
+  if (guestWishlist.length > 0) mergePromises.push(mergeGuestWishlist({ items: guestWishlist }));
+  if (guestCompare.length > 0) mergePromises.push(mergeGuestCompare({ items: guestCompare }));
+
+  if (mergePromises.length > 0) {
+    const results = await Promise.all(mergePromises);
+    // Clear guest storage now that data has been merged
+    clearGuestCart();
+    clearGuestWishlist();
+    clearGuestCompare();
+
+    // Build a summary toast
+    let cartMerged = 0;
+    let wishlistMerged = 0;
+    let idx = 0;
+    if (guestCart.length > 0) {
+      const r = results[idx++];
+      if (r && "data" in r && r.data) cartMerged = (r.data as { merged: number }).merged;
+    }
+    if (guestWishlist.length > 0) {
+      const r = results[idx++];
+      if (r && "data" in r && r.data) wishlistMerged = (r.data as { merged: number }).merged;
+    }
+
+    const parts: string[] = [];
+    if (cartMerged > 0) parts.push(`${cartMerged} cart item${cartMerged !== 1 ? "s" : ""}`);
+    if (wishlistMerged > 0) parts.push(`${wishlistMerged} wishlist item${wishlistMerged !== 1 ? "s" : ""}`);
+    if (parts.length > 0) {
+      toast.success(`Merged ${parts.join(", ")}`);
+    }
+  }
+
+  router.push(callbackUrl);
+}
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
@@ -63,7 +119,7 @@ export function LoginForm({ callbackUrl }: LoginFormProps) {
       if (result?.error) {
         setError("Invalid email or password.");
       } else {
-        router.push(callbackUrl);
+        await mergeGuestDataAndRedirect(router, callbackUrl);
       }
     } finally {
       setPending(false);
@@ -102,7 +158,7 @@ export function LoginForm({ callbackUrl }: LoginFormProps) {
       if (result?.error) {
         setError("Invalid or expired OTP.");
       } else {
-        router.push(callbackUrl);
+        await mergeGuestDataAndRedirect(router, callbackUrl);
       }
     } finally {
       setPending(false);

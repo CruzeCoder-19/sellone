@@ -27,7 +27,7 @@ export async function sendOtp(input: { phone: string }): Promise<ActionResult> {
   const { phone } = parsed.data;
   const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
 
-  // TODO: Prompt 2.5 — replace with Upstash Redis sliding window rate limit.
+  // Postgres-based rate limit. Acceptable for current traffic. If OTP send becomes a hot path, revisit with Upstash Redis sliding window.
   const recentCount = await prisma.otpToken.count({
     where: { identifier: phone, createdAt: { gte: oneHourAgo } },
   });

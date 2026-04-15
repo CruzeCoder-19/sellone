@@ -16,5 +16,7 @@ declare module "@auth/core/jwt" {
     roles?: string[];
     /** getTime() of User.rolesUpdatedAt at last JWT refresh. Used for stale-role detection. */
     rolesUpdatedAt?: number;
+    /** Epoch ms of the last time roles were re-checked against the DB. Used to bound re-check frequency to once per 60 s. */
+    lastRoleCheckAt?: number;
   }
 }
