@@ -6,7 +6,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { Minus, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
 import { getPublicAssetUrl } from "@/lib/blobs/url";
 import { formatPaise } from "@/lib/format";
 import { getCartAction, updateCartItem, removeCartItem } from "@/server/actions/cart.actions";
@@ -206,17 +205,12 @@ export function CartView({ initialData }: CartViewProps) {
             <span>{formatPaise(cart.subtotalInPaise)}</span>
           </div>
           <div className="mt-4">
-            <Button
-              disabled
-              size="lg"
-              className="w-full"
-              title="Available in next phase"
+            <Link
+              href="/checkout"
+              className="block w-full rounded-lg bg-blue-600 px-4 py-3 text-center text-sm font-semibold text-white hover:bg-blue-700"
             >
               Proceed to checkout
-            </Button>
-            <p className="mt-2 text-center text-xs text-gray-400">
-              Checkout available in next release
-            </p>
+            </Link>
           </div>
         </div>
       </div>

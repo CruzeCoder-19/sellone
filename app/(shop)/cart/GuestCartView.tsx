@@ -5,7 +5,6 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Image from "next/image";
 import Link from "next/link";
 import { Minus, Plus, Trash2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { getPublicAssetUrl } from "@/lib/blobs/url";
 import { formatPaise } from "@/lib/format";
 import { getGuestCartLines } from "@/server/actions/cart.actions";
@@ -88,9 +87,6 @@ export function GuestCartView() {
               const imageSrc = item.primaryImage
                 ? getPublicAssetUrl(item.primaryImage)
                 : "/placeholder.svg";
-              const guestItem = guestItems.find(
-                (g) => g.productId === item.productId && g.variantId === item.variantId,
-              );
               return (
                 <div key={item.id} className="flex gap-4 p-4">
                   <div className="relative h-20 w-20 flex-shrink-0 overflow-hidden rounded-md bg-gray-100">
@@ -166,12 +162,12 @@ export function GuestCartView() {
             <span>{formatPaise(subtotal)}</span>
           </div>
           <div className="mt-4">
-            <Button disabled size="lg" className="w-full" title="Available in next phase">
-              Proceed to checkout
-            </Button>
-            <p className="mt-2 text-center text-xs text-gray-400">
-              Checkout available in next release
-            </p>
+            <Link
+              href="/login?callbackUrl=/checkout"
+              className="block w-full rounded-lg bg-blue-600 px-4 py-3 text-center text-sm font-semibold text-white hover:bg-blue-700"
+            >
+              Sign in to check out
+            </Link>
           </div>
         </div>
       </div>
