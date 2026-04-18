@@ -502,18 +502,77 @@ async function seedSampleCreditAccount(
   adminId: string,
   now: Date,
 ): Promise<void> {
-  await prisma.creditAccount.upsert({
+  // Upsert the credit account; on re-seed, bring outstanding up to ₹12,500
+  const account = await prisma.creditAccount.upsert({
     where: { userId: customerId },
     create: {
       userId: customerId,
       status: "APPROVED",
-      limitInPaise: 5_000_000, // ₹50,000
-      outstandingInPaise: 0,
+      limitInPaise: 5_000_000,      // ₹50,000
+      outstandingInPaise: 1_250_000, // ₹12,500
       approvedById: adminId,
       approvedAt: now,
     },
-    update: {},
+    update: {
+      outstandingInPaise: 1_250_000,
+    },
   });
+
+  // Idempotent: seed CreditApplication only if none exists for this user
+  const existingApp = await prisma.creditApplication.findFirst({
+    where: { userId: customerId },
+  });
+  if (!existingApp) {
+    await prisma.creditApplication.create({
+      data: {
+        userId: customerId,
+        status: "APPROVED",
+        legalName: "Sample Trader Co.",
+        panNumber: "ABCDE1234F",
+        gstin: "29ABCDE1234F1ZV",
+        businessAddress: "123 Market Street, Mumbai 400001",
+        monthlyTurnoverInPaise: 2_000_000, // ₹20,000
+        submittedAt: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000), // 7 days ago
+        reviewedAt: now,
+        reviewedById: adminId,
+      },
+    });
+  }
+
+  // Idempotent: seed CreditTransactions only if none exist for this account
+  const existingTxCount = await prisma.creditTransaction.count({
+    where: { creditAccountId: account.id },
+  });
+  if (existingTxCount === 0) {
+    // Link to a seeded order if one exists for this customer; otherwise null
+    // TODO: link to seeded order when available
+    const existingOrder = await prisma.order.findFirst({
+      where: { customerId },
+      select: { id: true },
+    });
+
+    await prisma.creditTransaction.createMany({
+      data: [
+        {
+          creditAccountId: account.id,
+          type: "CHARGE",
+          status: "CONFIRMED",
+          amountInPaise: 1_250_000, // ₹12,500
+          relatedOrderId: existingOrder?.id ?? null,
+          createdAt: new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000), // 5 days ago
+        },
+        {
+          creditAccountId: account.id,
+          type: "REPAYMENT",
+          status: "PENDING_VERIFICATION",
+          amountInPaise: 500_000, // ₹5,000
+          method: "UPI",
+          utrReference: "UTR123456789",
+          createdAt: new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000), // 2 days ago
+        },
+      ],
+    });
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
