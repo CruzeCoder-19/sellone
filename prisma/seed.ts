@@ -576,6 +576,232 @@ async function seedSampleCreditAccount(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// seedAdminExtras  (coupons, EMPLOYEE role for admin, sample audit logs)
+// ─────────────────────────────────────────────────────────────────────────────
+
+async function seedAdminExtras(adminId: string): Promise<void> {
+  // Ensure admin also has EMPLOYEE role (grants access to /employee/credit)
+  await prisma.userRole.upsert({
+    where: { userId_role: { userId: adminId, role: "EMPLOYEE" } },
+    create: { userId: adminId, role: "EMPLOYEE" },
+    update: {},
+  });
+
+  // Sample coupons (idempotent)
+  await prisma.coupon.upsert({
+    where: { code: "WELCOME10" },
+    create: {
+      code: "WELCOME10",
+      discountType: "PERCENT",
+      value: 10,
+      minOrderInPaise: 100_000, // ₹1,000
+      usageLimit: null,
+      active: true,
+    },
+    update: {},
+  });
+
+  await prisma.coupon.upsert({
+    where: { code: "FLAT500" },
+    create: {
+      code: "FLAT500",
+      discountType: "FLAT",
+      value: 50_000, // ₹500
+      minOrderInPaise: 500_000, // ₹5,000
+      usageLimit: null,
+      active: true,
+    },
+    update: {},
+  });
+
+  // Sample audit log entries (idempotent via count check)
+  const existingLogs = await prisma.auditLog.count();
+  if (existingLogs === 0) {
+    await prisma.auditLog.createMany({
+      data: [
+        {
+          actorId: adminId,
+          action: "ROLE_UPDATE",
+          entity: "User",
+          entityId: adminId,
+          metadata: { roles: ["ADMIN", "CUSTOMER", "EMPLOYEE"] },
+        },
+        {
+          actorId: adminId,
+          action: "COUPON_CREATED",
+          entity: "Coupon",
+          entityId: "seed",
+          metadata: { codes: ["WELCOME10", "FLAT500"] },
+        },
+      ],
+    });
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// seedSampleSales
+// ─────────────────────────────────────────────────────────────────────────────
+
+async function seedSampleSales(now: Date): Promise<void> {
+  const email = "sales@wolsell.local";
+  const passwordHash = await bcrypt.hash("sales1234", 12);
+
+  const user = await prisma.user.upsert({
+    where: { email },
+    create: {
+      email,
+      name: "Demo Sales",
+      passwordHash,
+      emailVerified: now,
+      rolesUpdatedAt: now,
+    },
+    update: {},
+  });
+
+  await prisma.userRole.upsert({
+    where: { userId_role: { userId: user.id, role: "SALES" } },
+    create: { userId: user.id, role: "SALES" },
+    update: {},
+  });
+
+  // SalesProfile (idempotent)
+  const profile = await prisma.salesProfile.upsert({
+    where: { userId: user.id },
+    create: {
+      userId: user.id,
+      region: "West India",
+      monthlyTargetInPaise: 5_000_000, // ₹50,000
+    },
+    update: {},
+  });
+
+  // 5 sample leads (skip if any exist for this profile)
+  const existingLeadCount = await prisma.salesLead.count({
+    where: { salesProfileId: profile.id },
+  });
+
+  if (existingLeadCount === 0) {
+    const leads: {
+      contactName: string;
+      contactPhone?: string;
+      contactEmail?: string;
+      status: "NEW" | "CONTACTED" | "QUALIFIED" | "WON" | "LOST";
+      notes?: string;
+    }[] = [
+      {
+        contactName: "Ramesh Hardware",
+        contactPhone: "+919876543210",
+        contactEmail: "ramesh@example.com",
+        status: "NEW",
+        notes: "Interested in bulk switches.",
+      },
+      {
+        contactName: "Gupta Electricals",
+        contactPhone: "+919876543211",
+        status: "NEW",
+      },
+      {
+        contactName: "Sharma Building Supplies",
+        contactPhone: "+919876543212",
+        contactEmail: "sharma@example.com",
+        status: "CONTACTED",
+        notes: "Follow up next week.",
+      },
+      {
+        contactName: "Mehta Plumbing Mart",
+        contactPhone: "+919876543213",
+        contactEmail: "mehta@example.com",
+        status: "WON",
+        notes: "Order placed for ₹25,000.",
+      },
+      {
+        contactName: "Jain Paint Traders",
+        status: "LOST",
+        notes: "Went with a competitor.",
+      },
+    ];
+
+    for (const lead of leads) {
+      await prisma.salesLead.create({
+        data: { salesProfileId: profile.id, ...lead },
+      });
+    }
+  }
+
+  // AchieverEntry for current month (idempotent via @@unique)
+  const period = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  await prisma.achieverEntry.upsert({
+    where: { userId_period: { userId: user.id, period } },
+    create: {
+      userId: user.id,
+      period,
+      metricInPaise: 2_500_000, // ₹25,000
+      rank: 1,
+    },
+    update: {},
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// seedSampleEmployee
+// ─────────────────────────────────────────────────────────────────────────────
+
+async function seedSampleEmployee(now: Date): Promise<void> {
+  const email = "employee@wolsell.local";
+  const passwordHash = await bcrypt.hash("employee1234", 12);
+
+  const user = await prisma.user.upsert({
+    where: { email },
+    create: {
+      email,
+      name: "Demo Employee",
+      passwordHash,
+      emailVerified: now,
+      rolesUpdatedAt: now,
+    },
+    update: {},
+  });
+
+  await prisma.userRole.upsert({
+    where: { userId_role: { userId: user.id, role: "EMPLOYEE" } },
+    create: { userId: user.id, role: "EMPLOYEE" },
+    update: {},
+  });
+
+  // EmployeeProfile (idempotent)
+  const profile = await prisma.employeeProfile.upsert({
+    where: { userId: user.id },
+    create: {
+      userId: user.id,
+      employeeCode: "EMP-001",
+      department: "Operations",
+      joinedAt: new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000), // 30 days ago
+    },
+    update: {},
+  });
+
+  // 3 sample check-in records for past 3 days (skip if records already exist)
+  const existingCount = await prisma.employeeCheckIn.count({
+    where: { employeeProfileId: profile.id },
+  });
+
+  if (existingCount === 0) {
+    for (let i = 3; i >= 1; i--) {
+      const dayStart = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
+      dayStart.setUTCHours(3, 30, 0, 0); // 9:00 AM IST = 3:30 UTC
+      const dayEnd = new Date(dayStart.getTime() + 9 * 60 * 60 * 1000); // 9 hours later
+      await prisma.employeeCheckIn.create({
+        data: {
+          employeeProfileId: profile.id,
+          checkInAt: dayStart,
+          checkOutAt: dayEnd,
+        },
+      });
+    }
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Entry point
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -592,6 +818,9 @@ async function main(): Promise<void> {
   const adminId = await seedAdminUser(now);
   console.log("  ✓ admin user");
 
+  await seedAdminExtras(adminId);
+  console.log("  ✓ admin extras (EMPLOYEE role, coupons, audit logs)");
+
   const { shopId } = await seedSampleSeller(now);
   console.log("  ✓ sample seller + shop");
 
@@ -603,6 +832,12 @@ async function main(): Promise<void> {
 
   await seedSampleCreditAccount(customerId, adminId, now);
   console.log("  ✓ sample credit account");
+
+  await seedSampleSales(now);
+  console.log("  ✓ sample sales user + profile + leads + achiever entry");
+
+  await seedSampleEmployee(now);
+  console.log("  ✓ sample employee + profile + check-ins");
 
   console.log("🌱 Seed complete.");
 }
