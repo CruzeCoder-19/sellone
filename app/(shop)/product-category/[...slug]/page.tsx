@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { getCategoryBySlug } from "@/server/queries/category.queries";
 import { listProducts } from "@/server/queries/product.queries";
+import { getAllBrandsForFilter } from "@/server/queries/brand.queries";
 import { ProductCard } from "@/components/catalog/ProductCard";
 import { SortSelect } from "@/components/shop/SortSelect";
 import type { ProductFilters, CategoryNode } from "@/types/catalog";
@@ -28,19 +29,6 @@ function buildFilterUrl(
   const qs = params.toString();
   return qs ? `${base}?${qs}` : base;
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Seed brands
-// TODO Prompt 4 or later: query brands from DB if/when brand list grows beyond a handful.
-// ─────────────────────────────────────────────────────────────────────────────
-
-const SEED_BRANDS = [
-  { slug: "wolsell-pro", name: "Wolsell Pro" },
-  { slug: "buildmate", name: "BuildMate" },
-  { slug: "homefix", name: "HomeFix" },
-  { slug: "paintco", name: "PaintCo" },
-  { slug: "purewear", name: "PureWear" },
-];
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Pagination
@@ -156,20 +144,15 @@ export default async function CategoryPage({
     perPage: 24,
   };
 
-  const { items, total, totalPages } = await listProducts(filters);
+  const [{ items, total, totalPages }, brands, { getCategoryTree }] = await Promise.all([
+    listProducts(filters),
+    getAllBrandsForFilter(),
+    import("@/server/queries/category.queries"),
+  ]);
+  const tree = await getCategoryTree();
 
   // Build the current page's base URL from the slug array
   const baseUrl = `/product-category/${slugSegments.join("/")}`;
-
-  // Find this category's node in the tree to get its children
-  // (getCategoryBySlug doesn't return children, so we reconstruct from breadcrumb + a quick match)
-  // We only need children of the direct category for the sidebar sub-nav.
-  // getCategoryBySlug gives us the tree via the cached call, but doesn't expose children.
-  // Simple approach: children are loaded as part of the getCategoryTree result used internally.
-  // For the sidebar, we need the children of `category`. We'll do a DB-free approach:
-  // since getCategoryTree is cached, call it and find the node.
-  const { getCategoryTree } = await import("@/server/queries/category.queries");
-  const tree = await getCategoryTree();
 
   function findNode(nodes: CategoryNode[], id: string): CategoryNode | null {
     for (const n of nodes) {
@@ -259,7 +242,7 @@ export default async function CategoryPage({
                   All brands
                 </Link>
               </li>
-              {SEED_BRANDS.map((b) => (
+              {brands.map((b) => (
                 <li key={b.slug}>
                   <Link
                     href={buildFilterUrl(baseUrl, sp, { brand: b.slug })}

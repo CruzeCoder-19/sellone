@@ -576,6 +576,98 @@ async function seedSampleCreditAccount(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// seedBlogAndNewsletter
+// ─────────────────────────────────────────────────────────────────────────────
+
+async function seedBlogAndNewsletter(adminId: string, now: Date): Promise<void> {
+  // Blog posts (idempotent by slug)
+  await prisma.blogPost.upsert({
+    where: { slug: "welcome-to-wolsell" },
+    create: {
+      slug: "welcome-to-wolsell",
+      title: "Welcome to Wolsell",
+      excerpt: "India's new wholesale marketplace is here. Discover how Wolsell is changing the way businesses buy.",
+      contentMdx: `# Welcome to Wolsell
+
+We are thrilled to launch Wolsell — India's trusted B2B wholesale marketplace.
+
+## What is Wolsell?
+
+Wolsell connects manufacturers, distributors, and sellers with retail businesses across India. Whether you need electrical supplies, hardware, kitchen fittings, apparel, or paints — you'll find verified suppliers with competitive bulk pricing.
+
+## Why we built this
+
+Procurement for small and medium businesses in India has always been fragmented — phone calls, manual invoices, and unreliable supply chains. We built Wolsell to fix that.
+
+## What's next?
+
+- **Wolsell Credit** — buy now, pay on delivery
+- **Seller onboarding** — list your products in minutes
+- **Real-time order tracking** — know where your goods are
+
+Stay tuned for more updates. We're just getting started.
+`,
+      authorId: adminId,
+      publishedAt: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000),
+    },
+    update: {},
+  });
+
+  await prisma.blogPost.upsert({
+    where: { slug: "how-wolsell-credit-works" },
+    create: {
+      slug: "how-wolsell-credit-works",
+      title: "How Wolsell Credit Works",
+      excerpt: "Understand Wolsell's buy-now-pay-later facility for verified business buyers.",
+      contentMdx: `# How Wolsell Credit Works
+
+Wolsell Credit is our built-in BNPL (buy now, pay later) facility for verified business buyers.
+
+## Who is it for?
+
+Any registered business buyer on Wolsell can apply. We verify your business credentials and set a credit limit based on your purchasing history and business profile.
+
+## How to apply
+
+1. Log in to your Wolsell account.
+2. Go to **Account → Wolsell Credit**.
+3. Submit your application with your PAN and GSTIN.
+4. Our team reviews within 2–3 business days.
+
+## How it works at checkout
+
+Once approved, you'll see **"Pay with Wolsell Credit"** as a payment option at checkout. Your outstanding balance is updated immediately.
+
+## Repayment
+
+Repayments can be made via UPI or bank transfer. Log the UTR reference in your dashboard — our team verifies and updates your available credit within 24 hours.
+
+## Credit limits
+
+Limits start at ₹10,000 and scale up based on your repayment history and order volume. Contact our team for limit increase requests.
+`,
+      authorId: adminId,
+      publishedAt: new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000),
+    },
+    update: {},
+  });
+
+  // Newsletter subscribers
+  const subscribers = [
+    "buyer1@example.com",
+    "retailer@example.com",
+    "shopowner@example.com",
+  ];
+  for (const email of subscribers) {
+    await prisma.newsletterSubscriber.upsert({
+      where: { email },
+      create: { email, confirmedAt: now },
+      update: {},
+    });
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // seedAdminExtras  (coupons, EMPLOYEE role for admin, sample audit logs)
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -820,6 +912,9 @@ async function main(): Promise<void> {
 
   await seedAdminExtras(adminId);
   console.log("  ✓ admin extras (EMPLOYEE role, coupons, audit logs)");
+
+  await seedBlogAndNewsletter(adminId, now);
+  console.log("  ✓ blog posts + newsletter subscribers");
 
   const { shopId } = await seedSampleSeller(now);
   console.log("  ✓ sample seller + shop");

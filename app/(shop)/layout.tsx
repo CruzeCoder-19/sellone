@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Package } from "lucide-react";
 import { SearchInput } from "@/components/shop/SearchInput";
 import { HeaderIcons } from "@/components/shop/HeaderIcons";
+import { NewsletterSignup } from "@/components/shop/NewsletterSignup";
 import { Toaster } from "@/components/ui/sonner";
 
 export default function ShopLayout({ children }: { children: React.ReactNode }) {
@@ -96,10 +97,11 @@ export default function ShopLayout({ children }: { children: React.ReactNode }) 
               </ul>
             </div>
             <div>
-              <p className="mb-3 text-sm font-semibold text-gray-900">Wolsell</p>
-              <p className="text-sm text-gray-500">
-                Wholesale supplies, simplified.
+              <p className="mb-3 text-sm font-semibold text-gray-900">Stay Updated</p>
+              <p className="mb-3 text-sm text-gray-500">
+                Get the latest deals and updates.
               </p>
+              <NewsletterSignup />
             </div>
           </div>
           <div className="mt-8 border-t border-gray-200 pt-6 text-center text-xs text-gray-400">

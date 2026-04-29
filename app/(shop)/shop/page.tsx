@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { getCategoryTree } from "@/server/queries/category.queries";
 import { listProducts } from "@/server/queries/product.queries";
+import { getAllBrandsForFilter } from "@/server/queries/brand.queries";
 import { ProductCard } from "@/components/catalog/ProductCard";
 import { SortSelect } from "@/components/shop/SortSelect";
 import type { ProductFilters } from "@/types/catalog";
@@ -36,19 +37,6 @@ function buildFilterUrl(
   const qs = params.toString();
   return qs ? `${base}?${qs}` : base;
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Seed brands (hard-coded for now — query from DB if/when brand list grows)
-// TODO Prompt 4 or later: query brands from DB if/when brand list grows beyond a handful.
-// ─────────────────────────────────────────────────────────────────────────────
-
-const SEED_BRANDS = [
-  { slug: "wolsell-pro", name: "Wolsell Pro" },
-  { slug: "buildmate", name: "BuildMate" },
-  { slug: "homefix", name: "HomeFix" },
-  { slug: "paintco", name: "PaintCo" },
-  { slug: "purewear", name: "PureWear" },
-];
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Pagination component
@@ -154,9 +142,10 @@ export default async function ShopPage({
     perPage: 24,
   };
 
-  const [{ items, total, totalPages }, tree] = await Promise.all([
+  const [{ items, total, totalPages }, tree, brands] = await Promise.all([
     listProducts(filters),
     getCategoryTree(),
+    getAllBrandsForFilter(),
   ]);
 
   const topLevel = tree.filter((c) => c.parentId === null);
@@ -220,7 +209,7 @@ export default async function ShopPage({
                   All brands
                 </Link>
               </li>
-              {SEED_BRANDS.map((b) => (
+              {brands.map((b) => (
                 <li key={b.slug}>
                   <Link
                     href={buildFilterUrl(baseUrl, sp, { brand: b.slug })}

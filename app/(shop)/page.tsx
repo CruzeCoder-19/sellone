@@ -1,20 +1,21 @@
 import Link from "next/link";
 import { Truck, CreditCard, RotateCcw, ShieldCheck } from "lucide-react";
 import { getCategoryTree } from "@/server/queries/category.queries";
-import { listFeaturedProducts } from "@/server/queries/product.queries";
+import { listFeaturedProducts, getHomepageStats } from "@/server/queries/product.queries";
 import { CategoryTile } from "@/components/catalog/CategoryTile";
 import { ProductCard } from "@/components/catalog/ProductCard";
 
 export const metadata = {
-  title: "Wolsell — Wholesale supplies, simplified",
+  title: "Wolsell — Wholesale Supplies, Simplified",
   description:
-    "Bulk pricing on hardware, sanitary, electrical, paints, and more. Register as a buyer or seller.",
+    "India's trusted B2B wholesale marketplace. Bulk pricing on hardware, sanitary, electrical, paints, and more. Register as a buyer or seller.",
 };
 
 export default async function HomePage() {
-  const [tree, featured] = await Promise.all([
+  const [tree, featured, stats] = await Promise.all([
     getCategoryTree(),
     listFeaturedProducts(8),
+    getHomepageStats(),
   ]);
 
   const topLevel = tree.filter((c) => c.parentId === null);
@@ -22,8 +23,17 @@ export default async function HomePage() {
   return (
     <>
       {/* ── Hero ── */}
-      <section className="bg-gradient-to-br from-blue-700 to-blue-900 px-4 py-20 text-white sm:px-6">
-        <div className="mx-auto max-w-3xl text-center">
+      <section className="relative overflow-hidden bg-gradient-to-br from-blue-700 to-blue-900 px-4 py-20 text-white sm:px-6">
+        {/* subtle dot grid pattern */}
+        <div
+          className="pointer-events-none absolute inset-0 opacity-10"
+          style={{
+            backgroundImage:
+              "radial-gradient(circle, white 1px, transparent 1px)",
+            backgroundSize: "28px 28px",
+          }}
+        />
+        <div className="relative mx-auto max-w-3xl text-center">
           <h1 className="text-4xl font-extrabold tracking-tight sm:text-5xl">
             Wholesale supplies, simplified
           </h1>
@@ -43,6 +53,29 @@ export default async function HomePage() {
             >
               Become a seller
             </Link>
+          </div>
+          {/* Credit callout */}
+          <p className="mt-5 flex items-center justify-center gap-1.5 text-sm text-blue-200">
+            <CreditCard className="h-4 w-4" />
+            Buy now, pay later with{" "}
+            <Link href="/customer/credit" className="font-semibold text-white underline underline-offset-2 hover:text-blue-100">
+              Wolsell Credit
+            </Link>
+          </p>
+          {/* Live stats */}
+          <div className="mt-10 flex flex-wrap justify-center gap-8">
+            <div className="text-center">
+              <p className="text-3xl font-extrabold">{stats.productCount.toLocaleString("en-IN")}+</p>
+              <p className="text-xs text-blue-300 uppercase tracking-widest mt-1">Products</p>
+            </div>
+            <div className="text-center">
+              <p className="text-3xl font-extrabold">{stats.sellerCount.toLocaleString("en-IN")}+</p>
+              <p className="text-xs text-blue-300 uppercase tracking-widest mt-1">Sellers</p>
+            </div>
+            <div className="text-center">
+              <p className="text-3xl font-extrabold">{stats.categoryCount.toLocaleString("en-IN")}+</p>
+              <p className="text-xs text-blue-300 uppercase tracking-widest mt-1">Categories</p>
+            </div>
           </div>
         </div>
       </section>

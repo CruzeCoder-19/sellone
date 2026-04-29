@@ -1,4 +1,5 @@
 // EDGE-SAFE — imports only from auth.config.ts; never Prisma, bcryptjs, or @netlify/blobs.
+// TODO: Rename to proxy.ts when Next.js stabilizes the new convention.
 import NextAuth from "next-auth";
 import { authConfig } from "./auth.config";
 import { NextResponse } from "next/server";

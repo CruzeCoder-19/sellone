@@ -1,36 +1,94 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Wolsell — B2B Wholesale Marketplace
 
-## Getting Started
+Wolsell is a full-stack B2B wholesale marketplace built on Next.js 16. Buyers browse bulk-priced hardware, sanitary, electrical, paint, and apparel products. Sellers list products, manage inventory, and fulfill orders. Employees manage credit, admins run the whole platform.
 
-First, run the development server:
+## Tech Stack
+
+| Layer | Technology |
+|---|---|
+| Framework | Next.js 16 (App Router) |
+| Language | TypeScript (strict) |
+| Styling | Tailwind CSS v4 + shadcn/ui |
+| Database | PostgreSQL via Supabase (Mumbai) |
+| ORM | Prisma |
+| Auth | NextAuth v5 (credentials + OTP) |
+| Email | Nodemailer v7 |
+| File storage | Supabase Storage (via `/api/blobs`) |
+| Notifications | Sonner toast |
+
+## Setup
 
 ```bash
+# 1. Clone the repo
+git clone <repo-url>
+cd wolsell
+
+# 2. Install dependencies
+npm install
+
+# 3. Configure environment
+cp .env.example .env.local
+# Fill in DATABASE_URL, DIRECT_URL, AUTH_SECRET, OTP_PEPPER, etc.
+
+# 4. Generate Prisma client
+npx prisma generate
+
+# 5. Push schema to database (dev)
+npx prisma db push
+
+# 6. Seed database
+npx prisma db seed
+
+# 7. Start dev server
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Test Accounts
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Role | Email | Password |
+|---|---|---|
+| Customer | `customer@wolsell.local` | `customer1234` |
+| Seller | `seller@wolsell.local` | `seller1234` |
+| Employee | `employee@wolsell.local` | `employee1234` |
+| Sales | `sales@wolsell.local` | `sales1234` |
+| Admin | `admin@wolsell.local` | `admin1234` |
 
-## Learn More
+## Folder Structure
 
-To learn more about Next.js, take a look at the following resources:
+```
+wolsell/
+├── app/                   # Next.js App Router pages
+│   ├── (shop)/            # Public storefront (/, /shop, /blog, /product/...)
+│   ├── (dashboard)/       # Auth-protected dashboards
+│   │   ├── admin/         # Admin panel
+│   │   ├── seller/        # Seller product & order management
+│   │   ├── employee/      # Employee check-in & credit management
+│   │   ├── sales/         # Sales leads & leaderboard
+│   │   └── customer/      # Customer orders, wishlist, credit
+│   └── api/               # Route handlers (blobs, auth, OTP)
+├── components/            # React components (no Prisma)
+│   ├── admin/
+│   ├── catalog/
+│   ├── seller/
+│   └── shop/
+├── server/
+│   ├── actions/           # Server Actions (mutations)
+│   └── queries/           # Data fetching functions
+├── lib/                   # Shared utilities (auth, db, email, format)
+├── prisma/
+│   ├── schema.prisma
+│   └── seed.ts
+└── types/                 # Shared TypeScript types
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Available Scripts
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+npm run dev       # Start development server
+npm run build     # Production build
+npm run start     # Start production server
+npm run lint      # ESLint
+npx prisma studio # Browse database in browser
+```

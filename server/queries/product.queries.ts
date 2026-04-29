@@ -261,3 +261,34 @@ export async function searchProducts(
   });
   return rows.map(toListItem);
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// getHomepageStats
+// ─────────────────────────────────────────────────────────────────────────────
+
+export async function getHomepageStats(): Promise<{
+  productCount: number;
+  sellerCount: number;
+  categoryCount: number;
+}> {
+  const [productCount, sellerCount, categoryCount] = await Promise.all([
+    prisma.product.count({ where: { status: "ACTIVE", deletedAt: null } }),
+    prisma.shop.count({ where: { status: "ACTIVE", deletedAt: null } }),
+    prisma.category.count(),
+  ]);
+  return { productCount, sellerCount, categoryCount };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// getActiveProductSlugsForSitemap
+// ─────────────────────────────────────────────────────────────────────────────
+
+export async function getActiveProductSlugsForSitemap(): Promise<
+  { slug: string; updatedAt: Date }[]
+> {
+  return prisma.product.findMany({
+    where: { status: "ACTIVE", deletedAt: null },
+    select: { slug: true, updatedAt: true },
+    orderBy: { updatedAt: "desc" },
+  });
+}
